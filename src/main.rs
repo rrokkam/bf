@@ -1,17 +1,17 @@
 struct Program {
-    tape: Vec<u8>,
-    head: usize,
-    program: Vec<u8>,
-    pc: usize,
+    data: Vec<u8>,
+    data_pointer: usize,
+    instructions: Vec<u8>,
+    instruction_pointer: usize,
 }
 
 impl Program {
     pub fn new(program: Vec<u8>) -> Self {
         Program {
-            tape: Vec::with_capacity(30_000),
-            head: 0,
-            program: program,
-            pc: 0,
+            data: vec![0; 30_000],
+            data_pointer: 0,
+            instructions: program,
+            instruction_pointer: 0,
         }
     }
 
@@ -22,12 +22,64 @@ impl Program {
     }
 
     fn step(&mut self) {
-        println!("READING: {}", self.program[self.pc] as char);
-        self.pc += 1;
+        match self.current_instruction() {
+            b'>' => self.data_pointer += 1,
+            b'<' => self.data_pointer -= 1,
+            b'+' => self.data[self.data_pointer] += 1,
+            b'-' => self.data[self.data_pointer] -= 1,
+            b'[' => {
+                if self.data[self.data_pointer] == 0 {
+                    self.jump_instruction_pointer_to_matching_right_brace()
+                }
+            }
+            b']' => {
+                if self.data[self.data_pointer] != 0 {
+                    self.jump_instruction_pointer_to_matching_left_brace()
+                }
+            }
+            b'.' => print!("{}", self.data[self.data_pointer] as char),
+            b',' => unimplemented!(), // self.store_byte_at_data_pointer(),
+            _ => (),
+        };
+        self.instruction_pointer += 1;
+    }
+
+    fn current_instruction(&self) -> u8 {
+        self.instructions[self.instruction_pointer]
+    }
+
+    fn jump_instruction_pointer_to_matching_right_brace(&mut self) {
+        let mut rbraces_to_match = 0;
+        loop {
+            match self.current_instruction() {
+                b'[' => rbraces_to_match += 1,
+                b']' => rbraces_to_match -= 1,
+                _ => (),
+            }
+            if rbraces_to_match == 0 {
+                return;
+            }
+            self.instruction_pointer += 1;
+        }
+    }
+
+    fn jump_instruction_pointer_to_matching_left_brace(&mut self) {
+        let mut lbraces_to_match = 0;
+        loop {
+            match self.current_instruction() {
+                b'[' => lbraces_to_match -= 1,
+                b']' => lbraces_to_match += 1,
+                _ => (),
+            }
+            if lbraces_to_match == 0 {
+                return;
+            }
+            self.instruction_pointer -= 1;
+        }
     }
 
     pub fn done(&self) -> bool {
-        self.pc == self.program.len()
+        self.instruction_pointer >= self.instructions.len()
     }
 }
 
